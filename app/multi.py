@@ -4,7 +4,7 @@ Spec: {"measure": {"agg": sum|avg|count|min|max|count_distinct, "table": t, "col
        "order": asc|desc, "top": int|None}
 Every table/column must exist in the catalog; joins come only from CONFIRMED relationships, followed many-to-one
 (from the fact side to the lookup side) so rows are never duplicated."""
-import os, re, json, sqlite3, urllib.request
+import os, re, json, sqlite3, time, urllib.request
 import schema
 from textnorm import norm
 AGGS = {"sum", "avg", "count", "min", "max", "count_distinct"}
@@ -108,8 +108,10 @@ def run(user, spec):
     if not re.match(r"^SELECT ", sql) or ";" in sql: raise ValueError("blocked")
     c = sqlite3.connect(f"file:{os.path.abspath(schema.ws_paths(user)[0])}?mode=ro", uri=True)
     try:
+        dl = time.time() + 5; c.set_progress_handler(lambda: 1 if time.time() > dl else 0, 20000)
         cur = c.execute(sql, params); rows = [list(r) for r in cur.fetchall()]; cols = [d[0] for d in cur.description]
     finally: c.close()
+    m = spec["measure"]; cols = [g["col"] + (f" ({g['grain']})" if g["grain"] else "") for g in spec["group_by"]] + [f'{m["agg"]}({m["col"] or "*"})']
     return {"spec": spec, "sql": sql, "params": params, "joins": [e["id"] for e in path], "columns": cols, "rows": rows}
 
 # ---------- rule planner (Arabic/English) ----------
@@ -202,6 +204,6 @@ def ask_multi(user, question, use_llm=True):
     if spec is None: planner = "rules"; spec = validate(rule_plan(question, st), st)
     out = run(user, spec); out["planner"] = planner
     out["chart"] = {"type": "line" if spec["group_by"] and spec["group_by"][0]["grain"] else "bar", "labels": [" / ".join(str(x) for x in r[:-1]) for r in out["rows"]],
-                    "values": [r[-1] for r in out["rows"]], "title": "value"} if spec["group_by"] and out["rows"] else None
+                    "values": [r[-1] for r in out["rows"]], "title": out["columns"][-1]} if spec["group_by"] and out["rows"] else None
     m = spec["measure"]; out["answer"] = f'{m["agg"]}({m["col"] or "*"}) on {m["table"]}' + (" by " + ", ".join(g["col"] for g in spec["group_by"]) if spec["group_by"] else "") + (" via " + ", ".join(out["joins"]) if out["joins"] else "")
     return out
