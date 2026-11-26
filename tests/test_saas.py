@@ -16,15 +16,15 @@ def call(method, path, body=None, cookie=None, raw=False):
     return r.status, json.loads(r.read() or b"{}"), r.getheader("Set-Cookie")
 st, _, _ = call("POST", "/api/ask", {"question": "revenue"}); check("ask without login -> 401", st == 401)
 st, j, _ = call("POST", "/api/signup", {"email": "a@x.com", "password": "short"}); check("weak password rejected", st == 400)
-st, j, ck = call("POST", "/api/signup", {"email": "a@x.com", "password": "password123"}); check("signup ok + cookie", st == 200 and ck and "HttpOnly" in ck)
+st, j, ck = call("POST", "/api/signup", {"email": "a@x.com", "password": "Zx9-Qm4-pw"}); check("signup ok + cookie", st == 200 and ck and "HttpOnly" in ck)
 cookie = ck.split(";")[0]
-st, j, _ = call("POST", "/api/signup", {"email": "a@x.com", "password": "password123"}); check("duplicate email rejected", st == 400)
+st, j, _ = call("POST", "/api/signup", {"email": "a@x.com", "password": "Zx9-Qm4-pw"}); check("duplicate email rejected", st == 400)
 st, j, _ = call("POST", "/api/login", {"email": "a@x.com", "password": "wrongpass1"}); check("wrong password -> 401", st == 401)
 st, j, _ = call("POST", "/api/ask", {"question": "Revenue by city in 2026"}, cookie); check("ask with login (demo data)", st == 200 and j["mode"] == "sql" and j["rows"][0][0] == "Cairo")
 csv = "order_id,order_date,customer_id,city,category,product,channel,payment,qty,revenue,profit\n1,2026-01-05,c1,Cairo,Dairy,Milk,online,card,2,100,20\n2,2026-02-05,c2,Giza,Dairy,Milk,store,cash,1,60,10\n"
 st, j, _ = call("POST", "/api/upload", csv, cookie, raw=True); check("csv upload", st == 200 and j["rows"] == 2)
 st, j, _ = call("POST", "/api/ask", {"question": "Total revenue"}, cookie); check("ask uses uploaded data (160)", j["rows"][0][0] == 160)
-st, j, ck2 = call("POST", "/api/signup", {"email": "b@x.com", "password": "password123"}); cookie2 = ck2.split(";")[0]
+st, j, ck2 = call("POST", "/api/signup", {"email": "b@x.com", "password": "Zx9-Qm4-pw"}); cookie2 = ck2.split(";")[0]
 st, j, _ = call("POST", "/api/ask", {"question": "Total revenue"}, cookie2); check("other user still on demo data (isolated)", j["rows"][0][0] > 1_000_000)
 st, j, _ = call("POST", "/api/upload", "a,b\n1,2\n", cookie2, raw=True); check("bad csv rejected", st == 400 and "missing columns" in j["error"])
 call("POST", "/api/logout", {}, cookie); st, _, _ = call("POST", "/api/ask", {"question": "x"}, cookie); check("session dead after logout", st == 401)
