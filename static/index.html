@@ -54,12 +54,16 @@ svg text{font-size:11px;fill:#33475b}
 <form id="af" autocomplete="on">
 <label for="em">Email</label><input id="em" type="email" autocomplete="username" required maxlength="320" style="width:100%">
 <label for="pw">Password (8+ characters) / كلمة المرور</label><input id="pw" type="password" autocomplete="current-password" required minlength="8" maxlength="200" style="width:100%">
+<div id="cw" class="hide"><label for="cd">6-digit code from your authenticator app (or a recovery code) / كود التطبيق</label><input id="cd" autocomplete="one-time-code" maxlength="20" style="width:100%"></div>
 <div class="row" style="margin-top:12px"><button type="submit" id="bl">Log in</button><button type="button" class="ghost" id="bs">Create account / حساب جديد</button></div>
 <p class="err" id="amsg" role="alert"></p></form>
+<p class="meta"><a href="#" id="fpl">Forgot password? / نسيت كلمة المرور</a></p>
+<form id="fp" class="hide"><h2>Reset password with a recovery code</h2><label for="fe">Email</label><input id="fe" type="email" style="width:100%"><label for="fc">Recovery code (from signup, like ab12-cd34-ef56)</label><input id="fc" style="width:100%" autocomplete="off"><label for="fn">New password</label><input id="fn" type="password" minlength="8" autocomplete="new-password" style="width:100%"><div class="row" style="margin-top:10px"><button>Reset password</button></div><p id="fm" role="alert"></p></form>
 <p class="meta">Local-only app. Your data stays on this computer.</p></section>
+<section class="card hide" id="rc" style="max-width:520px;margin-inline:auto"><h2>Save your recovery codes / احفظ أكواد الاسترجاع</h2><p class="meta">Each code works once. They are the only way to reset your password or log in without your authenticator. They are shown only now.</p><pre id="rcl" dir="ltr"></pre><div class="row"><button type="button" id="rcc" class="ghost">Copy</button><button type="button" id="rcd">I saved them / حفظتها</button></div></section>
 
 <div id="app" class="hide">
-<div class="tabs" role="tablist"><button class="tab" role="tab" id="t1" aria-selected="true" type="button">Sales demo / المبيعات</button><button class="tab" role="tab" id="t2" aria-selected="false" type="button">My tables / جداولي</button></div>
+<div class="tabs" role="tablist"><button class="tab" role="tab" id="t1" aria-selected="true" type="button">Sales demo / المبيعات</button><button class="tab" role="tab" id="t2" aria-selected="false" type="button">My tables / جداولي</button><button class="tab" role="tab" id="t3" aria-selected="false" type="button">Security / الأمان</button></div>
 
 <section id="p1" role="tabpanel">
 <div class="card"><div class="row"><span class="meta" id="src1"></span>
@@ -79,8 +83,15 @@ svg text{font-size:11px;fill:#33475b}
 <details><summary>Add a link manually</summary><div class="row" style="margin-top:8px"><select id="mf" aria-label="From table"></select><select id="mfc" aria-label="From column"></select><span>→</span><select id="mt" aria-label="To table"></select><select id="mtc" aria-label="To column"></select><button class="sm" id="madd" type="button">Add</button></div></details></div>
 <form class="card hide" id="tf"><h2>3. Ask across your tables / اسأل</h2><div class="row"><input id="tq" aria-label="Question about your tables" maxlength="500" placeholder="total revenue by city | إجمالي المبيعات حسب city" autocomplete="off"><button id="b2">Ask / اسأل</button></div><div class="chips" id="tchips"></div></form>
 <div id="tout" aria-live="polite"></div></section>
+<section id="p3" role="tabpanel" class="hide">
+<div class="card"><h2>Two-factor authentication (TOTP)</h2><div id="tfs"></div>
+<div id="tfsetup" class="hide"><p class="meta">Add this key in your authenticator app (Google Authenticator, Aegis, 1Password...): choose "enter a setup key", type: time-based.</p><pre id="tfk" dir="ltr"></pre><div class="meta" id="tfu" dir="ltr" style="word-break:break-all"></div>
+<div class="row" style="margin-top:8px"><input id="tfc" placeholder="6-digit code" inputmode="numeric" maxlength="6" autocomplete="off"><button type="button" id="tfe">Turn on</button></div></div>
+<div id="tfoff" class="hide"><div class="row"><input id="dp" type="password" placeholder="Password" autocomplete="current-password"><input id="dc" placeholder="6-digit code" inputmode="numeric" maxlength="6" autocomplete="off"><button type="button" class="bad" id="tfd">Turn off</button></div></div><p id="tfm" role="status"></p></div>
+<div class="card"><h2>Account activity / سجل النشاط</h2><div class="meta">Your last 50 security events (logins, 2FA changes, uploads). Stored with a tamper-evident hash chain.</div><div class="tw"><table id="aud"></table></div></div></section>
 </div></main>
 <script>
+let PENDING=false;
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const isAr=s=>/[\u0600-\u06FF]/.test(s);
@@ -109,11 +120,10 @@ const TEX=["total revenue by city","total qty by category","number of orders by 
 $("tchips").innerHTML=TEX.map(e=>`<button type="button" class="chip">${esc(e)}</button>`).join("");
 $("tchips").onclick=e=>{if(e.target.classList.contains("chip")){$("tq").value=e.target.textContent;$("tf").requestSubmit()}};
 askBox($("f"),$("q"),$("b1"),$("out"),"/api/ask");askBox($("tf"),$("tq"),$("b2"),$("tout"),"/api/tables/ask");
-function tab(n){for(const i of[1,2]){$("t"+i).setAttribute("aria-selected",i==n);$("p"+i).classList.toggle("hide",i!=n)}if(n==2)wsLoad()}
+var tab=function(n){for(const i of[1,2,3]){$("t"+i).setAttribute("aria-selected",i==n);$("p"+i).classList.toggle("hide",i!=n)}if(n==2)wsLoad();if(n==3)secLoad()};
 $("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);
-async function me(){const {j}=await api("/api/me");const u=j.user;$("auth").classList.toggle("hide",!!u);$("app").classList.toggle("hide",!u);$("me").classList.toggle("hide",!u);
+async function me(){const {j}=await api("/api/me");const u=PENDING?null:j.user;$("auth").classList.toggle("hide",!!u);$("app").classList.toggle("hide",!u);$("me").classList.toggle("hide",!u);
  if(u){$("who").textContent=u.email;$("src1").textContent=u.has_upload?"Using your uploaded sales CSV":"Using the built-in synthetic Egyptian retail data"}}
-async function auth(p){$("amsg").textContent="";const {ok,j}=await post("/api/"+p,{email:$("em").value,password:$("pw").value});if(!ok){$("amsg").textContent=j.error||"error";return}$("pw").value="";me()}
 $("af").onsubmit=e=>{e.preventDefault();auth("login")};$("bs").onclick=()=>{if($("af").reportValidity())auth("signup")};
 $("bo").onclick=async()=>{await post("/api/logout");$("out").innerHTML="";$("tout").innerHTML="";me()};
 $("rs").onclick=async()=>{await post("/api/reset");$("umsg").textContent="";me()};
@@ -134,4 +144,24 @@ const d=$("drop");d.ondragover=e=>{e.preventDefault();d.classList.add("over")};d
 $("smp").onclick=async()=>{const {ok,j}=await post("/api/tables/sample");if(!ok)$("tmsg").innerHTML=`<span class="err">${esc(j.error)}</span>`;wsLoad()};
 $("trs").onclick=async()=>{if(!confirm("Delete all your uploaded tables?"))return;await post("/api/tables/reset");$("tout").innerHTML="";wsLoad()};
 (async()=>{const u=new URLSearchParams(location.search).get("q");await me();if(u&&!$("app").classList.contains("hide")){$("q").value=u;$("f").requestSubmit()}})();
+
+function showCodes(codes){PENDING=true;$("rcl").textContent=codes.join("\n");$("rc").classList.remove("hide");$("auth").classList.add("hide");$("app").classList.add("hide")}
+$("rcc").onclick=()=>navigator.clipboard&&navigator.clipboard.writeText($("rcl").textContent);
+$("rcd").onclick=()=>{PENDING=false;$("rcl").textContent="";$("rc").classList.add("hide");me()};
+$("fpl").onclick=e=>{e.preventDefault();$("fp").classList.toggle("hide")};
+$("fp").onsubmit=async e=>{e.preventDefault();const {ok,j}=await post("/api/reset-password",{email:$("fe").value,recovery_code:$("fc").value,new_password:$("fn").value});$("fm").className=ok?"ok":"err";$("fm").textContent=ok?`Password changed. ${j.recovery_codes_left} recovery codes left. Log in now.`:(j.error||"error");if(ok){$("fc").value="";$("fn").value=""}};
+async function auth(p){$("amsg").textContent="";const {ok,j}=await post("/api/"+p,{email:$("em").value,password:$("pw").value,code:$("cd").value});
+ if(j.need_2fa){$("cw").classList.remove("hide");$("cd").focus();$("amsg").textContent="Enter your 6-digit code.";return}
+ if(!ok){$("amsg").textContent=j.error||"error";return}
+ if(j.recovery_codes)showCodes(j.recovery_codes);
+ if(j.pending_verification){$("amsg").className="ok";$("amsg").textContent=j.message;return}
+ $("pw").value="";$("cd").value="";$("cw").classList.add("hide");me()}
+$("t3").onclick=()=>tab(3);
+const _tab=tab;tab=function(n){for(const i of[1,2,3]){$("t"+i).setAttribute("aria-selected",i==n);$("p"+i).classList.toggle("hide",i!=n)}if(n==2)wsLoad();if(n==3)secLoad()};
+async function secLoad(){const u=(await api("/api/me")).j.user;if(!u)return;$("tfsetup").classList.add("hide");$("tfoff").classList.toggle("hide",!u.totp_on);
+ $("tfs").innerHTML=u.totp_on?'<span class="badge b-confirmed">ON</span> Your login asks for a code.':'<span class="badge b-proposed">OFF</span> <button class="sm" id="tfb" type="button">Set up 2FA</button>';
+ if($("tfb"))$("tfb").onclick=async()=>{const {ok,j}=await post("/api/2fa/setup");if(!ok){$("tfm").textContent=j.error;return}$("tfk").textContent=j.secret;$("tfu").textContent=j.uri;$("tfsetup").classList.remove("hide")};
+ const {j}=await api("/api/audit");const ev=j.events||[];$("aud").innerHTML="<tr><th>Time</th><th>Event</th><th>IP</th><th>Detail</th></tr>"+ev.map(e=>`<tr><td>${esc(new Date(e.ts*1000).toLocaleString())}</td><td>${esc(e.event)}</td><td>${esc(e.ip)}</td><td>${esc(e.detail)}</td></tr>`).join("")}
+$("tfe").onclick=async()=>{const {ok,j}=await post("/api/2fa/enable",{code:$("tfc").value});$("tfc").value="";if(!ok){$("tfm").className="err";$("tfm").textContent=j.error;return}$("tfm").className="ok";$("tfm").textContent="2FA is on. Save the new recovery codes.";showCodes(j.recovery_codes)};
+$("tfd").onclick=async()=>{const {ok,j}=await post("/api/2fa/disable",{password:$("dp").value,code:$("dc").value});$("dp").value="";$("dc").value="";$("tfm").className=ok?"ok":"err";$("tfm").textContent=ok?"2FA is off.":j.error;secLoad()};
 </script></body></html>
