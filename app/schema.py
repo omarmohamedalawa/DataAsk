@@ -1,13 +1,15 @@
 """Multi-table workspace: CSV ingest, schema profiling, relationship inference, per-user storage.
 Everything here works on sanitized identifiers ([a-z][a-z0-9_]{0,39}) so they can be quoted safely."""
-import os, re, csv, io, json, sqlite3, time
+import os, re, csv, io, json, sqlite3, time, math
 import auth
 MAX_TABLES, MAX_COLS, MAX_ROWS = 8, 60, 200_000
+MAX_DB_BYTES = 100 * 1024 * 1024
 
 def ident(s, fallback):
     s = re.sub(r"[^a-z0-9]+", "_", str(s).strip().lower()).strip("_")
     if not s or not s[0].isalpha(): s = fallback if not s else "c_" + s
-    return s[:40]
+    s = s[:40]
+    return "t_" + s[:38] if s.startswith("sqlite") else s
 
 def ws_paths(user):
     return os.path.join(auth.USERS, f"{user['id']}_ws.db"), os.path.join(auth.USERS, f"{user['id']}_ws.json")
@@ -16,10 +18,10 @@ def _kind(vals):
     vals = [v for v in vals if v not in ("", None)]
     if not vals: return "text"
     def isint(v):
-        try: return str(int(v)) == v.strip().lstrip("+") or float(v) == int(float(v)) and "." not in v and "e" not in v.lower()
+        try: return abs(int(v)) < 2**53 and (str(int(v)) == v.strip().lstrip("+") or ("." not in v and "e" not in v.lower() and float(v) == int(float(v))))
         except Exception: return False
     def isnum(v):
-        try: float(v); return True
+        try: return math.isfinite(float(v))
         except Exception: return False
     if all(re.fullmatch(r"20\d\d-\d\d-\d\d.*", v) or re.fullmatch(r"19\d\d-\d\d-\d\d.*", v) for v in vals): return "date"
     if all(isint(v) for v in vals): return "int"
@@ -33,7 +35,7 @@ def profile_table(name, header, rows):
         kind = _kind(raw); nn = [v for v in raw if v != ""]
         d = len(set(nn))
         c = {"name": h, "type": kind, "rows": len(raw), "nulls": len(raw) - len(nn), "distinct": d, "unique": bool(nn) and d == len(nn) and len(nn) == len(raw)}
-        if kind == "text" and d <= 200: c["values"] = sorted(set(nn))
+        if kind == "text" and d <= 200 and all(len(v) <= 80 for v in nn): c["values"] = sorted(set(nn))
         low = h.lower()
         if c["unique"] and kind in ("int", "text") and (low == "id" or low.endswith("_id") or low.endswith("id") or (kind == "text" and d == len(raw))): c["role"] = "key"
         elif kind == "date": c["role"] = "date"
@@ -54,9 +56,11 @@ def add_table(user, name, raw: bytes):
     os.makedirs(auth.USERS, exist_ok=True)
     name = ident(name, "table"); st = load_state(user)
     if name not in st["tables"] and len(st["tables"]) >= MAX_TABLES: raise ValueError(f"max {MAX_TABLES} tables")
-    rd = csv.reader(io.StringIO(raw.decode("utf-8-sig")))
+    try: rd = csv.reader(io.StringIO(raw.decode("utf-8-sig")))
+    except UnicodeDecodeError: raise ValueError("file must be UTF-8 text (CSV)")
     try: head = next(rd)
     except StopIteration: raise ValueError("empty file")
+    except csv.Error: raise ValueError("not a valid CSV file")
     if len(head) > MAX_COLS: raise ValueError(f"max {MAX_COLS} columns")
     names, seen = [], set()
     for i, h in enumerate(head):
@@ -64,10 +68,12 @@ def add_table(user, name, raw: bytes):
         while k in seen: k = f"{n[:36]}_{j}"; j += 1
         seen.add(k); names.append(k)
     rows = []
-    for i, r in enumerate(rd):
-        if i >= MAX_ROWS: raise ValueError("too many rows (200k max)")
-        if len(r) != len(names): raise ValueError(f"row {i + 2} has {len(r)} values, expected {len(names)}")
-        rows.append([v.strip() for v in r])
+    try:
+        for i, r in enumerate(rd):
+            if i >= MAX_ROWS: raise ValueError("too many rows (200k max)")
+            if len(r) != len(names): raise ValueError(f"row {i + 2} has {len(r)} values, expected {len(names)}")
+            rows.append([v.strip() for v in r])
+    except csv.Error: raise ValueError("not a valid CSV file")
     if not rows: raise ValueError("no data rows")
     prof = profile_table(name, names, rows)
     dbp = ws_paths(user)[0]; c = sqlite3.connect(dbp)
@@ -76,7 +82,10 @@ def add_table(user, name, raw: bytes):
     conv = []
     for r in rows:
         conv.append([(None if v == "" else int(float(v)) if k["type"] == "int" else float(v) if k["type"] == "real" else v) for v, k in zip(r, prof["columns"])])
-    c.executemany(f'INSERT INTO "{name}" VALUES (' + ",".join("?" * len(names)) + ")", conv); c.commit(); c.close()
+    c.executemany(f'INSERT INTO "{name}" VALUES (' + ",".join("?" * len(names)) + ")", conv); c.commit()
+    if os.path.getsize(dbp) > MAX_DB_BYTES:
+        c.execute(f'DROP TABLE "{name}"'); c.commit(); c.close(); raise ValueError("storage limit reached (100 MB per user)")
+    c.close()
     st["tables"][name] = prof
     st["relationships"] = [r for r in st["relationships"] if name not in (r["from_table"], r["to_table"])] + [
         r for r in infer(st, dbp, only_with=name)]
