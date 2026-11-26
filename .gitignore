@@ -1,0 +1,6 @@
+data/*.db
+data/users/
+__pycache__/
+docs/retail.db
+docs/sql-wasm.*
+node_modules/

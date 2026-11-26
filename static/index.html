@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><title>DataAsk</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:'Noto Sans Arabic','Noto Sans',sans-serif;background:#f4f6f8;margin:0;color:#1d2733}
+header{background:#0f4c5c;color:#fff;padding:14px 24px;font-size:20px}header small{opacity:.75;margin-inline-start:12px;font-size:13px}
+main{max-width:900px;margin:18px auto;padding:0 16px}
+form{display:flex;gap:8px}input{flex:1;padding:12px;font-size:16px;border:1px solid #b9c4cf;border-radius:8px;font-family:inherit}
+button{background:#0f4c5c;color:#fff;border:0;border-radius:8px;padding:0 22px;font-size:16px;cursor:pointer}
+.chips{margin:10px 0;display:flex;flex-wrap:wrap;gap:6px}.chips span{background:#e2eef0;border-radius:14px;padding:4px 12px;font-size:13px;cursor:pointer}
+.card{background:#fff;border-radius:10px;padding:16px;margin:14px 0;box-shadow:0 1px 3px #0002}
+.q{color:#0f4c5c;font-weight:600}.ans{font-size:17px;margin:8px 0}
+pre{background:#102a33;color:#cfe8ee;padding:10px;border-radius:6px;overflow:auto;font-size:12.5px;direction:ltr;text-align:left;white-space:pre-wrap}
+.src{font-size:13px;color:#46586a;border-inline-start:3px solid #e0a31a;padding:4px 10px;margin-top:8px}
+table{border-collapse:collapse;font-size:13px;margin-top:8px}td,th{border-bottom:1px solid #e3e8ee;padding:3px 12px}
+svg text{font-size:11px;fill:#33475b}
+</style></head><body><header>DataAsk <small>اسأل بياناتك | Ask your data — synthetic Egyptian retail demo</small></header>
+<main><div class=card id=auth style="display:none"><b>Sign in / تسجيل الدخول</b><br><input id=em type=email placeholder="email" style="margin:6px 0;width:100%;box-sizing:border-box"><input id=pw type=password placeholder="password (8+ chars)" style="width:100%;box-sizing:border-box"><div style="margin-top:8px"><button type=button id=bl>Log in</button> <button type=button id=bs>Sign up</button> <span id=amsg style="color:#b3261e"></span></div></div>
+<div class=card id=bar style="display:none;font-size:13px">Signed in as <b id=who></b> <button type=button id=bo style="padding:4px 12px;font-size:13px">Logout</button> <label style="margin-inline-start:12px">Upload sales CSV <input type=file id=up accept=".csv" style="font-size:12px"></label> <button type=button id=rs style="padding:4px 12px;font-size:13px">Back to demo data</button> <span id=umsg></span></div>
+<form id=f><input id=q placeholder="اسأل: أعلى 5 منتجات مبيعا في 2026  |  Ask: revenue by city in 2026" autofocus><button>Ask / اسأل</button></form>
+<div class=chips id=chips></div><div id=out></div></main>
+<script>
+const ex=["اعلى 5 منتجات مبيعا في 2026","المبيعات حسب المدينة في 2026","Revenue by month in 2026","Which category has the highest profit?","كام عدد الطلبات الشهر اللي فات؟","Average order value online vs store","ازاي بنحسب الربح؟","What is the return policy for dairy?"];
+chips.innerHTML=ex.map(e=>`<span>${e}</span>`).join("");chips.onclick=e=>{if(e.target.tagName=="SPAN"){q.value=e.target.textContent;f.requestSubmit()}};
+function chart(c){if(!c)return"";const W=820,H=240,p=40,max=Math.max(...c.values)||1,n=c.values.length,bw=(W-2*p)/n;let s=`<svg width=${W} height=${H+50} viewBox="0 0 ${W} ${H+50}" style="direction:ltr"><text x=${p} y=14 style="font-weight:600">${c.title}</text>`;
+if(c.type=="line"){let pts=c.values.map((v,i)=>[p+bw*i+bw/2,H-(v/max)*(H-30)]);s+=`<polyline fill="none" stroke="#0f4c5c" stroke-width="2.5" points="${pts.map(x=>x.join(",")).join(" ")}"></polyline>`+pts.map((x,i)=>`<circle cx="${x[0]}" cy="${x[1]}" r="3" fill="#0f4c5c"></circle>`+(i%2==0?`<text x=${x[0]} y=${H+16} text-anchor=middle>${c.labels[i].slice(2)}</text>`:"")).join("")}
+else c.values.forEach((v,i)=>{const h=(v/max)*(H-30);s+=`<rect x="${p+bw*i+6}" y="${H-h}" width="${bw-12}" height="${h}" fill="#1c7c8c" rx="3"></rect><text x=${p+bw*i+bw/2} y=${H-h-4} text-anchor=middle>${Math.round(v).toLocaleString()}</text><text x=${p+bw*i+bw/2} y=${H+16} text-anchor=middle>${c.labels[i].slice(0,14)}</text>`});
+return s+`<line x1="${p}" x2="${W-p}" y1="${H}" y2="${H}" stroke="#9fb0bf"></line></svg>`}
+f.onsubmit=async e=>{e.preventDefault();const t=q.value.trim();if(!t)return;const r=await (await fetch("/api/ask",{method:"POST",body:JSON.stringify({question:t})})).json();if(r.error==="login required"){me();return}
+const rtl=r.lang=="ar"?'dir=rtl':'';let h=`<div class=card ${rtl}><div class=q>${t}</div>`;
+if(r.error)h+=`<div class=ans>Error: ${r.error}</div>`;else{h+=`<div class=ans>${r.answer}</div>${chart(r.chart)}`;
+if(r.sql)h+=`<pre>${r.sql}\n-- params: ${JSON.stringify(r.params)}</pre>`;
+if(r.rows&&r.rows.length>1&&r.rows.length<=12)h+=`<table>${r.rows.map(x=>"<tr>"+x.map(c=>`<td>${typeof c=="number"?c.toLocaleString():c}</td>`).join("")+"</tr>").join("")}</table>`;
+(r.sources||[]).slice(0,r.mode=="rag"?2:1).forEach(s=>h+=`<div class=src>Source: ${s.doc}:${s.line} — ${s.text}</div>`)}
+out.innerHTML=h+"</div>"+out.innerHTML;q.value=""};
+(async()=>{const u=new URLSearchParams(location.search).get('q');if(u)for(const t of u.split('|').reverse()){q.value=t;f.requestSubmit();await new Promise(r=>setTimeout(r,400))}})();
+
+async function me(){const u=(await (await fetch("/api/me")).json()).user;auth.style.display=u?"none":"block";bar.style.display=u?"block":"none";f.style.display=u?"flex":"none";if(u)who.textContent=u.email+(u.has_upload?" (your data)":" (demo data)")}
+async function sendAuth(p){const r=await fetch("/api/"+p,{method:"POST",body:JSON.stringify({email:em.value,password:pw.value})});const j=await r.json();amsg.textContent=j.error||"";if(r.ok)me()}
+bl.onclick=()=>sendAuth("login");bs.onclick=()=>sendAuth("signup");
+bo.onclick=async()=>{await fetch("/api/logout",{method:"POST",body:"{}"});me()};
+rs.onclick=async()=>{await fetch("/api/reset",{method:"POST",body:"{}"});me()};
+up.onchange=async()=>{const r=await fetch("/api/upload",{method:"POST",body:await up.files[0].arrayBuffer()});const j=await r.json();umsg.textContent=j.error||(j.rows+" rows loaded");me()};
+me();
+</script></body></html>
