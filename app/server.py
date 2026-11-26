@@ -1,7 +1,7 @@
 import json, os, sys, re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(__file__))
-import auth
+import auth, schema, multi
 from engine import ask
 STATIC = os.path.join(os.path.dirname(__file__), "..", "static")
 SECURE = os.environ.get("COOKIE_SECURE", "") == "1"
@@ -19,6 +19,9 @@ class H(BaseHTTPRequestHandler):
         if self.path == "/healthz": return self._send(200, {"ok": True})
         if self.path == "/api/me": 
             u = auth.user_from_token(self._tok()); return self._send(200, {"user": u})
+        if self.path == "/api/tables":
+            u = auth.user_from_token(self._tok())
+            return self._send(200, schema.load_state(u)) if u else self._send(401, {"error": "login required"})
         self._send(200, open(os.path.join(STATIC, "index.html"), "rb").read(), ctype="text/html; charset=utf-8")
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
@@ -36,6 +39,17 @@ class H(BaseHTTPRequestHandler):
             if not user: return self._send(401, {"error": "login required"})
             if path == "/api/logout": auth.logout(self._tok()); return self._send(200, {"ok": True}, cookie=ck("", 0))
             if path == "/api/upload": return self._send(200, {"rows": auth.upload_csv(user, body)})
+            if path == "/api/tables/upload":
+                name = re.sub(r"[^\w\-]", "", self.headers.get("X-Table-Name", "table"))
+                return self._send(200, {"table": schema.add_table(user, name, body)})
+            if path == "/api/tables/relationship":
+                d = json.loads(body)
+                if d.get("manual"): return self._send(200, schema.add_manual_relationship(user, d["from_table"], d["from_col"], d["to_table"], d["to_col"]))
+                return self._send(200, schema.set_relationship(user, d["id"], bool(d.get("confirmed"))))
+            if path == "/api/tables/reset": schema.reset(user); return self._send(200, {"ok": True})
+            if path == "/api/tables/ask":
+                if not auth.rate_ok(user["id"]): return self._send(429, {"error": "too many questions, wait a minute"})
+                return self._send(200, multi.ask_multi(user, json.loads(body)["question"][:500]))
             if path == "/api/reset": auth.reset_demo(user); return self._send(200, {"ok": True})
             if path == "/api/ask":
                 if not auth.rate_ok(user["id"]): return self._send(429, {"error": "too many questions, wait a minute"})
