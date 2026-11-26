@@ -1,0 +1,6 @@
+# Reverse proxy with automatic HTTPS (Caddy). Replace dataask.example.com with your domain.
+# Run DataAsk with:  TRUST_PROXY=1 COOKIE_SECURE=1 python3 app/server.py   (it listens on 127.0.0.1:8000)
+dataask.example.com {
+	reverse_proxy 127.0.0.1:8000
+	header Strict-Transport-Security "max-age=31536000"
+}
