@@ -1,0 +1,36 @@
+name: Deploy demo to GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "app/**", "kb/**", "tools/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Build static demo (synthetic DB, config, sql.js)
+        run: python3 tools/build_site.py
+      - name: Run tests
+        run: |
+          python3 tests/eval.py | tail -1
+          python3 tests/test_saas.py | tail -1
+          node tests/eval_js.cjs | tail -1
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: docs }
+      - id: deployment
+        uses: actions/deploy-pages@v4
