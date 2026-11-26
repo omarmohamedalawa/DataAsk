@@ -35,6 +35,15 @@ Python 3.9+, standard library only. Put it behind HTTPS in production (the Docke
 - `app/auth.py`, `app/server.py`: accounts, sessions, rate limit (30 questions/min/user), CSV upload (5 MB, 200k rows) into a per-user database.
 - `docs/planner.js`: browser port of planner + RAG; SQL runs in SQLite WebAssembly.
 
+## Multiple tables and relationships (backend)
+Upload several CSVs (up to 8 tables, 60 columns, 200k rows each, 5 MB per file) from "My tables".
+1. **Profiling on upload** (`app/schema.py`): per column type (int/real/date/text), null count, distinct count, uniqueness, and a role (key, measure, date, dimension). Identifiers are sanitized to `[a-z0-9_]`.
+2. **Relationship inference**: a column becomes a proposed foreign key when its values are at least 90% contained in a unique column of another table (names matching raise confidence; without a name match it needs 99%). These are proposals only.
+3. **You confirm or reject** each join (or add one manually; the target must be a unique column). Only confirmed joins are ever used.
+4. **Questions across tables** (`app/multi.py`): the planner (rules, or an LLM if `LLM_API_KEY` is set) produces a JSON spec `{measure, group_by, filters, order, top}`. The spec is validated against the catalog (tables, columns, types, operators, limits) and turned into parameterized SQL. Joins follow confirmed relationships from the fact side to the lookup side (many-to-one) so rows are never duplicated. The model never writes SQL, and the database connection is read-only.
+API: `GET /api/tables`, `POST /api/tables/upload` (header `X-Table-Name`), `POST /api/tables/relationship`, `POST /api/tables/ask`, `POST /api/tables/reset`. Tests: `python3 tests/test_multi.py` (32 checks). Sample CSVs in `samples/`.
+Limits: no many-to-many or composite keys; join inference is heuristic (always confirm); the rule planner understands simple "measure by dimension, filter, top N" questions; the LLM planner has only been tested against a mock provider. Not available on the static GitHub Pages demo (needs the backend).
+
 ## Honest limits
 - The rule planner covers the listed metrics, dimensions and filters; unseen phrasing can misroute. The tests were written alongside it, so they are regression tests, not a generalization score.
 - The LLM planner is tested against a mock provider only, not a live provider yet.
