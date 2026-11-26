@@ -1,7 +1,7 @@
 """Schema-grounded planner: question (ar/en) -> structured spec -> SQL -> guarded execution.
 The planner is deterministic and offline. An LLM planner can replace plan() and must return the same spec;
 guard() and the eval set stay as the safety net."""
-import re, sqlite3, os
+import re, sqlite3, os, time
 from textnorm import norm, is_arabic
 DB = os.path.join(os.path.dirname(__file__), "..", "data", "retail.db")
 LATEST = "2026-10"
@@ -106,6 +106,7 @@ def run(sql, params, limit=200, db=None):
     s = guard(sql)
     c = sqlite3.connect(f"file:{os.path.abspath(db or DB)}?mode=ro", uri=True)
     try:
+        dl = time.time() + 5; c.set_progress_handler(lambda: 1 if time.time() > dl else 0, 20000)
         cur = c.execute(s, params); cols = [d[0] for d in cur.description]
         return cols, cur.fetchmany(limit)
     finally: c.close()
