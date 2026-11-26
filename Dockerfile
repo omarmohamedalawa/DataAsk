@@ -4,6 +4,7 @@ COPY app app
 COPY kb kb
 COPY static static
 COPY samples samples
+COPY tools tools
 RUN python3 app/seed_data.py
 ENV PORT=8000 HOST=0.0.0.0 COOKIE_SECURE=1
 EXPOSE 8000
