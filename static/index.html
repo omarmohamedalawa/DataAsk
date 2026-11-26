@@ -3,7 +3,7 @@
 body{font-family:'Noto Sans Arabic','Noto Sans',sans-serif;background:#f4f6f8;margin:0;color:#1d2733}
 header{background:#0f4c5c;color:#fff;padding:14px 24px;font-size:20px}header small{opacity:.75;margin-inline-start:12px;font-size:13px}
 main{max-width:900px;margin:18px auto;padding:0 16px}
-form{display:flex;gap:8px}input{flex:1;padding:12px;font-size:16px;border:1px solid #b9c4cf;border-radius:8px;font-family:inherit}
+form{display:flex;gap:8px}input{flex:1;min-width:0;padding:12px;font-size:16px;border:1px solid #b9c4cf;border-radius:8px;font-family:inherit}
 button{background:#0f4c5c;color:#fff;border:0;border-radius:8px;padding:0 22px;font-size:16px;cursor:pointer}
 .chips{margin:10px 0;display:flex;flex-wrap:wrap;gap:6px}.chips span{background:#e2eef0;border-radius:14px;padding:4px 12px;font-size:13px;cursor:pointer}
 .card{background:#fff;border-radius:10px;padding:16px;margin:14px 0;box-shadow:0 1px 3px #0002}
@@ -12,7 +12,7 @@ pre{background:#102a33;color:#cfe8ee;padding:10px;border-radius:6px;overflow:aut
 .src{font-size:13px;color:#46586a;border-inline-start:3px solid #e0a31a;padding:4px 10px;margin-top:8px}
 table{border-collapse:collapse;font-size:13px;margin-top:8px}td,th{border-bottom:1px solid #e3e8ee;padding:3px 12px}
 svg text{font-size:11px;fill:#33475b}
-</style></head><body><header>DataAsk <small>اسأل بياناتك | Ask your data — synthetic Egyptian retail demo</small></header>
+@media(max-width:480px){header small{display:block;margin:4px 0 0}button{padding:0 14px}}</style></head><body><header>DataAsk <small>اسأل بياناتك | Ask your data — synthetic Egyptian retail demo</small></header>
 <main><div class=card id=auth style="display:none"><b>Sign in / تسجيل الدخول</b><br><input id=em type=email placeholder="email" style="margin:6px 0;width:100%;box-sizing:border-box"><input id=pw type=password placeholder="password (8+ chars)" style="width:100%;box-sizing:border-box"><div style="margin-top:8px"><button type=button id=bl>Log in</button> <button type=button id=bs>Sign up</button> <span id=amsg style="color:#b3261e"></span></div></div>
 <div class=card id=bar style="display:none;font-size:13px">Signed in as <b id=who></b> <button type=button id=bo style="padding:4px 12px;font-size:13px">Logout</button> <label style="margin-inline-start:12px">Upload sales CSV <input type=file id=up accept=".csv" style="font-size:12px"></label> <button type=button id=rs style="padding:4px 12px;font-size:13px">Back to demo data</button> <span id=umsg></span></div>
 <form id=f><input id=q placeholder="اسأل: أعلى 5 منتجات مبيعا في 2026  |  Ask: revenue by city in 2026" autofocus><button>Ask / اسأل</button></form>
