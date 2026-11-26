@@ -96,7 +96,7 @@ def call(path, body=None, cookie=None, hdr=None, raw=None):
     c.request("POST" if body is not None or raw is not None else "GET", path, raw if raw is not None else (json.dumps(body) if body is not None else None), h); r = c.getresponse()
     return r.status, json.loads(r.read() or b"{}"), r.getheader("Set-Cookie")
 check("tables API needs login", call("/api/tables")[0] == 401 and call("/api/tables/upload", raw=b"a\n1")[0] == 401)
-_, _, ck = call("/api/signup", {"email": "m@x.com", "password": "password123"}); ck = ck.split(";")[0]
+_, _, ck = call("/api/signup", {"email": "m@x.com", "password": "Zx9-Qm4-pw"}); ck = ck.split(";")[0]
 for n, d in (("orders", ORD), ("customers", CUST)): call("/api/tables/upload", cookie=ck, hdr={"X-Table-Name": n}, raw=d.encode())
 s, j, _ = call("/api/tables", cookie=ck, body=None); 
 c = http.client.HTTPConnection("127.0.0.1", srv.server_port); c.request("GET", "/api/tables", headers={"Cookie": ck}); j = json.loads(c.getresponse().read())
