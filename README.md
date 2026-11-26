@@ -77,11 +77,34 @@ Limits: no many-to-many or composite keys; join inference is heuristic (always c
 - **Path traversal**: the server serves one HTML page and a JSON API only; it never opens a file path taken from a request. Per-user files are named by numeric user id.
 - **Isolation**: each user has a separate database file; tests confirm one user cannot see, query, reset or overwrite another's tables or CSV.
 - **Rate limits**: 30 questions/min and 30 upload or change requests/min per user; request body caps (16 KB JSON, 5 MB upload); socket timeout against slow clients.
-- **Not covered**: this is a stdlib server meant for local or small-team use. No email verification or password reset, no 2FA, no audit log, no per-user disk quota beyond 100 MB, and no TLS (use a reverse proxy). Not a substitute for an external penetration test.
+- **Not covered**: this is a stdlib server meant for local or small-team use. No per-user disk quota beyond 100 MB. Not a substitute for an external penetration test. See the account and HTTPS sections below.
+
+## Accounts: 2FA, recovery codes, password reset, audit log (`python3 tests/test_accounts.py`, 47 checks)
+- **Recovery codes**: signup returns 8 one-time codes, shown once, stored only as hashes. A code resets your password without any email service (Forgot password on the login page). Using one logs out all sessions and writes an audit entry. Enabling 2FA issues a fresh set.
+- **TOTP 2FA** (`app/totp.py`, RFC 6238, works with Google Authenticator, Aegis, etc.): Security tab, "Set up", type the secret (or the otpauth URI) into your app, confirm a code. Login then asks for the 6-digit code or a recovery code. A code cannot be replayed. Turning 2FA off needs password + code.
+- **Audit log**: signup, logins (ok/failed), 2FA changes, resets, uploads, relationship changes, logout. Each row is hash-chained to the previous one, so edits or deletions in the middle are detected (`audit_verify`). The Security tab shows your last 50 events.
+- **Email verification (optional)**: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `BASE_URL` and `REQUIRE_EMAIL_VERIFY=1`. New accounts then get a link and cannot log in until they click it. Without SMTP settings it stays off. It is tested against a mock SMTP server only, never a real mail provider.
+
+## HTTPS
+- **Local self-signed**: `python3 tools/make_cert.py` (needs `openssl`), then `TLS_CERT=data/tls/cert.pem TLS_KEY=data/tls/key.pem python3 app/server.py`. This turns on `Secure` cookies and an HSTS header. Browsers warn about self-signed certificates; that is expected.
+- **Behind a proxy**: `deploy/Caddyfile` (automatic certificates) or `deploy/nginx.conf`, with `TRUST_PROXY=1 COOKIE_SECURE=1`.
+- A real TLS handshake against the server is part of `test_accounts.py`.
+
+## LLM planner (optional)
+Set `LLM_API_KEY`, `LLM_PROVIDER` (`openai`, `anthropic` or `gemini`), `LLM_MODEL` and optionally `LLM_BASE_URL` (any OpenAI-compatible endpoint). The adapter retries once on 429/5xx, caps responses at 200 KB, extracts JSON tolerantly and does one repair round. The model only returns a validated JSON spec; on any failure the rule planner answers. Default model names may be out of date, so always set `LLM_MODEL`.
+Check it live with your own key: `python3 tools/llm_check.py` runs the 22 eval questions and prints agreement with the gold SQL. `python3 tests/test_llm.py` (24 checks) uses mock servers for the three providers.
+
+## Tests
+`python3 tests/eval.py` (30), `test_saas.py` (17), `test_multi.py` (32), `test_security.py` (81), `test_llm.py` (24), `test_accounts.py` (47).
 
 ## Honest limits
 - The rule planner covers the listed metrics, dimensions and filters; unseen phrasing can misroute. The tests were written alongside it, so they are regression tests, not a generalization score.
-- The LLM planner is tested against a mock provider only, not a live provider yet.
+- The LLM planner has only been tested against mock providers. Nobody has run it against a live provider yet; use `tools/llm_check.py` with your own key.
+- Email verification and SMTP are tested with a mock server only. Recovery codes are the primary reset path.
+- TOTP secrets are stored unencrypted in the local SQLite file (protect the data folder).
+- The audit chain detects partial edits, not someone who rewrites the whole table.
+- Self-signed certificates give a browser warning. No QR code for 2FA: the secret is shown as text.
+- No external penetration test; no per-user disk quota beyond 100 MB.
 - Uploaded CSVs must use the columns: order_id, order_date, customer_id, city, category, product, channel, payment, qty, revenue (profit optional). The LLM prompt lists the demo's cities and categories, so uploads with other names rely on the rule planner for now.
 - No payments or billing. "SaaS" here means accounts, per-user data, and an API you can host; see PLAN.md for next steps.
 
