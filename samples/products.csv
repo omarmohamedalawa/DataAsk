@@ -1,0 +1,9 @@
+product_id,product_name,category,unit_price
+P1,Milk,Dairy,32
+P2,Cheese,Dairy,60
+P3,Panadol,OTC Pharmacy,45
+P4,Tea,Beverages,55
+P5,Rice,Groceries,38
+P6,Detergent,Cleaning,90
+P7,Diapers,Baby,210
+P8,Juice,Beverages,28
