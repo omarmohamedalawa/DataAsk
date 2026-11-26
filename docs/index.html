@@ -1,29 +1,85 @@
 <!doctype html><html><head><meta charset="utf-8"><title>DataAsk: chat with your data</title><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{font-family:'Noto Sans Arabic','Noto Sans',sans-serif;background:#f4f6f8;margin:0;color:#1d2733}
-header{background:#0f4c5c;color:#fff;padding:14px 24px;font-size:20px}header small{opacity:.75;margin-inline-start:12px;font-size:13px}
-main{max-width:900px;margin:18px auto;padding:0 16px}
-form{display:flex;gap:8px}input{flex:1;min-width:0;padding:12px;font-size:16px;border:1px solid #b9c4cf;border-radius:8px;font-family:inherit}
-button{background:#0f4c5c;color:#fff;border:0;border-radius:8px;padding:0 22px;font-size:16px;cursor:pointer}
-.chips{margin:10px 0;display:flex;flex-wrap:wrap;gap:6px}.chips span{background:#e2eef0;border-radius:14px;padding:4px 12px;font-size:13px;cursor:pointer}
-.card{background:#fff;border-radius:10px;padding:16px;margin:14px 0;box-shadow:0 1px 3px #0002}
-.q{color:#0f4c5c;font-weight:600}.ans{font-size:17px;margin:8px 0}
-pre{background:#102a33;color:#cfe8ee;padding:10px;border-radius:6px;overflow:auto;font-size:12.5px;direction:ltr;text-align:left;white-space:pre-wrap}
-.src{font-size:13px;color:#46586a;border-inline-start:3px solid #e0a31a;padding:4px 10px;margin-top:8px}
-table{border-collapse:collapse;font-size:13px;margin-top:8px}td,th{border-bottom:1px solid #e3e8ee;padding:3px 12px}
-svg text{font-size:11px;fill:#33475b}
-@media(max-width:480px){header small{display:block;margin:4px 0 0}button{padding:0 14px}}</style></head><body><header>DataAsk <small>اسأل بياناتك | Ask your data — synthetic Egyptian retail demo</small></header>
-<main><div class=card style="font-size:13px;margin-top:0;color:#46586a">Live demo, runs entirely in your browser (SQLite WebAssembly). Synthetic Egyptian retail data. Nothing you type leaves this page. Accounts and the LLM planner need the backend in this repo (see README).</div><form id=f><input id=q placeholder="اسأل: أعلى 5 منتجات مبيعا في 2026  |  Ask: revenue by city in 2026" autofocus><button>Ask / اسأل</button></form>
+:root{color-scheme:light;--ink:#0f172a;--ink2:#334155;--mut:#64748b;--line:#e2e8f0;--bg:#f6f7fb;--surf:#fff;--surf2:#f8fafc;--brand:#4f46e5;--brand2:#7c3aed;--brandsoft:#eef2ff;--btnink:#fff;--warn:#d97706;--warnsoft:#fffbeb;--bad:#dc2626;--badsoft:#fef2f2;--good:#059669;--goodsoft:#ecfdf5;--code:#0b1220;--codeink:#c7d2fe;--shadow:0 1px 2px #0f172a0d,0 8px 24px -8px #0f172a1f;--r:14px;--ring:#4f46e540}
+:root[data-theme=dark]{color-scheme:dark;--ink:#e5e7ef;--ink2:#cbd5e1;--mut:#94a3b8;--line:#232a3d;--bg:#0b0f1a;--surf:#121829;--surf2:#161d31;--brand:#818cf8;--brand2:#a78bfa;--brandsoft:#1d2347;--btnink:#0b0f1a;--warn:#fbbf24;--warnsoft:#2a2210;--bad:#f87171;--badsoft:#2d1517;--good:#34d399;--goodsoft:#0f2a22;--code:#070a13;--codeink:#c7d2fe;--shadow:0 1px 2px #0006,0 12px 28px -10px #0009;--ring:#818cf855}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Inter','Segoe UI','Noto Sans Arabic','Noto Sans',system-ui,-apple-system,sans-serif;background:var(--bg);margin:0;color:var(--ink);line-height:1.6;font-size:15px;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
+body:before{content:"";position:fixed;inset:0 0 auto 0;height:340px;background:radial-gradient(60% 100% at 15% 0,color-mix(in srgb,var(--brand) 22%,transparent),transparent 70%),radial-gradient(50% 90% at 90% 0,color-mix(in srgb,var(--brand2) 18%,transparent),transparent 70%);pointer-events:none;z-index:-1}
+header{position:sticky;top:0;z-index:5;backdrop-filter:saturate(1.4) blur(14px);background:color-mix(in srgb,var(--surf) 78%,transparent);border-bottom:1px solid var(--line);padding:12px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;color:#fff;box-shadow:0 6px 16px -4px var(--brand)}
+.logo svg{width:20px;height:20px}
+header h1{font-size:19px;margin:0;font-weight:750;letter-spacing:-.02em}header .sub{color:var(--mut);font-size:13px;flex:1}
+header .me{font-size:13px;display:flex;gap:10px;align-items:center;color:var(--ink2)}
+main{max-width:980px;margin:26px auto 80px;padding:0 16px}
+.card{background:var(--surf);border-radius:var(--r);padding:20px 22px;margin:16px 0;box-shadow:var(--shadow);border:1px solid var(--line);animation:rise .35s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h2{font-size:16px;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+button{font:inherit;font-weight:600;background:linear-gradient(135deg,var(--brand),var(--brand2));color:var(--btnink);border:0;border-radius:10px;padding:10px 20px;cursor:pointer;transition:transform .12s,box-shadow .15s,filter .15s;box-shadow:0 6px 16px -8px var(--brand)}
+button:hover{filter:brightness(1.07);transform:translateY(-1px)}button:active{transform:none}button:disabled{opacity:.55;cursor:wait}
+button.ghost{background:transparent;color:var(--brand);border:1px solid var(--line);box-shadow:none;padding:7px 14px;font-size:13px}
+button.ghost:hover{background:var(--brandsoft);border-color:var(--brand);filter:none}
+button.sm{padding:5px 11px;font-size:12px}button.bad{background:var(--bad);box-shadow:none;color:#fff}button.good{background:var(--good);box-shadow:none;color:#fff}
+input,select{font:inherit;padding:11px 14px;border:1px solid var(--line);border-radius:10px;min-width:0;background:var(--surf2);color:var(--ink);transition:border-color .15s,box-shadow .15s,background .15s}
+input::placeholder{color:var(--mut);opacity:.8}
+input:focus,select:focus,button:focus-visible{outline:0;box-shadow:0 0 0 4px var(--ring);border-color:var(--brand);background:var(--surf)}
+input[type=file]{padding:6px;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>input{flex:1;min-width:180px}
+label{font-size:13px;font-weight:600;color:var(--ink2);display:block;margin:10px 0 5px}
+a{color:var(--brand)}
+.tabs{display:inline-flex;gap:4px;padding:4px;background:var(--surf);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);margin-top:6px;max-width:100%;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;color:var(--mut);border-radius:9px;padding:8px 16px;border:0;box-shadow:none;white-space:nowrap}
+.tab:hover{color:var(--ink);background:var(--surf2);filter:none;transform:none}
+.tab[aria-selected=true]{color:var(--btnink);background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:0 6px 14px -6px var(--brand)}
+.chips{margin:14px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--brandsoft);color:var(--brand);border-radius:999px;padding:5px 13px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;box-shadow:none}
+.chip:hover{border-color:var(--brand);filter:none;transform:translateY(-1px)}
+.q{color:var(--brand);font-weight:700;font-size:15px}.ans{font-size:18px;margin:10px 0;font-weight:500;letter-spacing:-.01em}
+.meta{font-size:12.5px;color:var(--mut)}
+pre{background:var(--code);color:var(--codeink);padding:14px;border-radius:10px;overflow:auto;font:12.5px/1.6 ui-monospace,'SF Mono',Menlo,Consolas,monospace;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;border:1px solid #ffffff10}
+details summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:10px;font-weight:500}details summary:hover{color:var(--brand)}
+.src{font-size:13px;color:var(--ink2);border-inline-start:3px solid var(--warn);padding:8px 12px;margin-top:10px;background:var(--warnsoft);border-radius:8px}
+.tw{overflow-x:auto;margin-top:10px;border:1px solid var(--line);border-radius:10px}table{border-collapse:collapse;font-size:13.5px;min-width:260px;width:100%}
+th{background:var(--surf2);text-align:start;color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+td,th{border-bottom:1px solid var(--line);padding:9px 14px}tr:last-child td{border-bottom:0}tbody tr:hover td{background:var(--surf2)}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+.b-proposed{background:var(--warnsoft);color:var(--warn)}.b-confirmed{background:var(--goodsoft);color:var(--good)}.b-rejected{background:var(--badsoft);color:var(--bad)}
+.tbl{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0;background:var(--surf2)}
+.col{display:inline-block;background:var(--surf);border:1px solid var(--line);border-radius:6px;padding:0 8px;margin:2px;font-size:12px;direction:ltr}
+.k-key{border-color:var(--warn);background:var(--warnsoft)}.k-measure{border-color:var(--brand);background:var(--brandsoft)}.k-date{border-color:var(--brand2)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--mut);margin:10px 0;transition:.15s}.drop.over{background:var(--brandsoft);border-color:var(--brand)}
+.err{color:var(--bad);font-size:14px}.ok{color:var(--good);font-size:14px}
+.hide{display:none!important}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff6;border-top-color:#fff;border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-inline-end:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+svg text{font-size:11px;fill:var(--mut);font-family:inherit}svg text.v{fill:var(--ink2);font-weight:600}
+.grid{stroke:var(--line);stroke-width:1}.axis{stroke:var(--line)}
+.bar{fill:var(--brand);transition:opacity .15s}.bar:hover{opacity:.8}
+.ln{fill:none;stroke:var(--brand);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}.dot{fill:var(--surf);stroke:var(--brand);stroke-width:2.5}.area{fill:var(--brand);opacity:.1}
+.hb{display:grid;grid-template-columns:minmax(80px,28%) 1fr auto;gap:10px;align-items:center;margin:6px 0;font-size:13.5px}
+.hb>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}
+.bt{background:var(--brandsoft);border-radius:999px;height:12px;overflow:hidden}.bf{display:block;height:12px;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand2));transform-origin:left;animation:grow .6s ease both}
+[dir=rtl] .bf{transform-origin:right}
+@keyframes grow{from{transform:scaleX(0)}}
+.empty{color:var(--mut);text-align:center;padding:18px}
+.theme{background:transparent;border:1px solid var(--line);color:var(--ink2);box-shadow:none;padding:6px 10px;font-size:15px;line-height:1}
+.theme:hover{background:var(--surf2);filter:none}
+@media(max-width:560px){.tab{padding:8px 12px;font-size:13px}header{padding:10px 14px}header h1{font-size:17px}header .sub{display:none}.card{padding:15px}button{padding:10px 14px}.ans{font-size:16px}main{margin-top:16px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+form{display:flex;gap:10px}.chips span{background:var(--brandsoft);color:var(--brand);border-radius:999px;padding:5px 13px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent}.chips span:hover{border-color:var(--brand)}header small{color:var(--mut);font-size:13px;font-weight:400}header{font-size:19px;font-weight:750}form button{white-space:nowrap}@media(max-width:560px){header small{display:none}}.note{font-size:13px;color:var(--mut)}
+</style></head><body><header><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span><span>DataAsk <small>اسأل بياناتك | Ask your data · synthetic Egyptian retail demo</small></span><button class="theme" id="th" type="button" aria-label="Toggle dark mode" style="margin-inline-start:auto">◐</button></header>
+<main><div class="card note" style="margin-top:0">Live demo, runs entirely in your browser (SQLite WebAssembly). Synthetic Egyptian retail data. Nothing you type leaves this page. Accounts and the LLM planner need the backend in this repo (see README).</div><form id=f><input id=q placeholder="اسأل: أعلى 5 منتجات مبيعا في 2026  |  Ask: revenue by city in 2026" autofocus><button>Ask / اسأل</button></form>
 <div class=chips id=chips></div><div id=out></div></main>
-<script src="config.js"></script><script src="sql-wasm.js"></script><script src="planner.js"></script>
+<script>(function(){const t=localStorage.getItem('da-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t;document.getElementById('th').onclick=()=>{const n=document.documentElement.dataset.theme=='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('da-theme',n)}catch(e){}}})();</script><script src="config.js"></script><script src="sql-wasm.js"></script><script src="planner.js"></script>
 <script>
 let DB=null;const ready=(async()=>{const SQL=await initSqlJs({locateFile:f=>f});DB=new SQL.Database(new Uint8Array(await (await fetch("retail.db")).arrayBuffer()))})();
 const ex=["اعلى 5 منتجات مبيعا في 2026","المبيعات حسب المدينة في 2026","Revenue by month in 2026","Which category has the highest profit?","كام عدد الطلبات الشهر اللي فات؟","Average order value online vs store","ازاي بنحسب الربح؟","What is the return policy for dairy?"];
 chips.innerHTML=ex.map(e=>`<span>${e}</span>`).join("");chips.onclick=e=>{if(e.target.tagName=="SPAN"){q.value=e.target.textContent;f.requestSubmit()}};
-function chart(c){if(!c)return"";const W=820,H=240,p=40,max=Math.max(...c.values)||1,n=c.values.length,bw=(W-2*p)/n;let s=`<svg width=${W} height=${H+50} viewBox="0 0 ${W} ${H+50}" style="direction:ltr"><text x=${p} y=14 style="font-weight:600">${c.title}</text>`;
-if(c.type=="line"){let pts=c.values.map((v,i)=>[p+bw*i+bw/2,H-(v/max)*(H-30)]);s+=`<polyline fill="none" stroke="#0f4c5c" stroke-width="2.5" points="${pts.map(x=>x.join(",")).join(" ")}"></polyline>`+pts.map((x,i)=>`<circle cx="${x[0]}" cy="${x[1]}" r="3" fill="#0f4c5c"></circle>`+(i%2==0?`<text x=${x[0]} y=${H+16} text-anchor=middle>${c.labels[i].slice(2)}</text>`:"")).join("")}
-else c.values.forEach((v,i)=>{const h=(v/max)*(H-30);s+=`<rect x="${p+bw*i+6}" y="${H-h}" width="${bw-12}" height="${h}" fill="#1c7c8c" rx="3"></rect><text x=${p+bw*i+bw/2} y=${H-h-4} text-anchor=middle>${Math.round(v).toLocaleString()}</text><text x=${p+bw*i+bw/2} y=${H+16} text-anchor=middle>${c.labels[i].slice(0,14)}</text>`});
-return s+`<line x1="${p}" x2="${W-p}" y1="${H}" y2="${H}" stroke="#9fb0bf"></line></svg>`}
+function chart(c){if(!c)return"";const W=820,H=240,p=40,max=Math.max(...c.values)||1,n=c.values.length,bw=(W-2*p)/n;let s=`<svg width="100%" viewBox="0 0 ${W} ${H+50}" style="direction:ltr"><text x=${p} y=14 style="font-weight:600">${c.title}</text>`;
+if(c.type=="line"){let pts=c.values.map((v,i)=>[p+bw*i+bw/2,H-(v/max)*(H-30)]);s+=`<polyline class="ln" points="${pts.map(x=>x.join(",")).join(" ")}"></polyline>`+pts.map((x,i)=>`<circle class="dot" cx="${x[0]}" cy="${x[1]}" r="4"></circle>`+(i%2==0?`<text x=${x[0]} y=${H+16} text-anchor=middle>${c.labels[i].slice(2)}</text>`:"")).join("")}
+else c.values.forEach((v,i)=>{const h=(v/max)*(H-30);s+=`<rect x="${p+bw*i+6}" y="${H-h}" width="${bw-12}" height="${h}" class="bar" rx="4"></rect><text class=v x=${p+bw*i+bw/2} y=${H-h-4} text-anchor=middle>${Math.round(v).toLocaleString()}</text><text x=${p+bw*i+bw/2} y=${H+16} text-anchor=middle>${c.labels[i].slice(0,14)}</text>`});
+return s+`<line x1="${p}" x2="${W-p}" y1="${H}" y2="${H}" class="axis"></line></svg>`}
 f.onsubmit=async e=>{e.preventDefault();const t=q.value.trim();if(!t)return;await ready;let r;try{r=DataAsk.ask(DB,t.slice(0,500))}catch(e){r={error:e.message}}
 const rtl=r.lang=="ar"?'dir=rtl':'';let h=`<div class=card ${rtl}><div class=q>${t}</div>`;
 if(r.error)h+=`<div class=ans>Error: ${r.error}</div>`;else{h+=`<div class=ans>${r.answer}</div>${chart(r.chart)}`;
